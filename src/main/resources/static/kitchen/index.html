@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Kitchen Display</title>
+  <link rel="stylesheet" href="../fonts/fonts.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- ============================ Login screen ============================ -->
+  <section id="login-screen" class="screen screen--login">
+    <form id="login-form" class="login-card" autocomplete="on">
+      <h1 class="brand">Kitchen<span>Board</span></h1>
+      <p class="login-sub">Sign in to open the live ticket queue.</p>
+
+      <label for="username">Username</label>
+      <input id="username" name="username" type="text" autocomplete="username"
+             autocapitalize="none" spellcheck="false" required>
+
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+
+      <p id="login-error" class="form-error" role="alert" hidden></p>
+      <button id="login-submit" type="submit" class="btn btn-primary">Sign in</button>
+    </form>
+  </section>
+
+  <!-- ============================ Kitchen board =========================== -->
+  <section id="board-screen" class="screen screen--board" hidden>
+    <header class="topbar">
+      <div class="topbar-title">
+        <h1 class="brand">Kitchen<span>Board</span></h1>
+        <span id="staff-chip" class="staff-chip"></span>
+      </div>
+      <div class="topbar-actions">
+        <button id="sound-toggle" type="button" class="btn btn-ghost" aria-pressed="false">Enable sound</button>
+        <button id="logout" type="button" class="btn btn-ghost">Log out</button>
+      </div>
+    </header>
+
+    <p id="connection-banner" class="banner" role="status" hidden>Connection lost &mdash; retrying&hellip;</p>
+
+    <!-- Columns are generated from the OrderStatus lifecycle in app.js -->
+    <main id="board" class="board"></main>
+  </section>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

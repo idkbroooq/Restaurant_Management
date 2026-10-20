@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="light" />
+  <meta name="theme-color" content="#C2410C" />
+  <title>Order at your table · Saffron &amp; Sage</title>
+  <link rel="stylesheet" href="../fonts/fonts.css" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body data-screen="loading">
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="app-header">
+    <div class="app-header__inner">
+      <p class="brand">Saffron &amp; Sage</p>
+      <p class="table-pill" id="table-label"></p>
+    </div>
+  </header>
+
+  <div class="banner" id="global-banner" role="alert" hidden>
+    <span class="banner__text" id="global-banner-text"></span>
+    <button class="btn btn--ghost btn--sm" id="global-banner-retry" type="button" hidden>Retry</button>
+  </div>
+
+  <main class="main" id="main">
+    <!-- Loading -->
+    <section class="screen screen--center" id="screen-loading">
+      <div class="spinner" role="status" aria-label="Loading your table"></div>
+      <p class="muted">Loading your table…</p>
+    </section>
+
+    <!-- No table token in the URL -->
+    <section class="screen screen--center" id="screen-scan" hidden>
+      <div class="empty-card">
+        <p class="empty-card__emoji" aria-hidden="true">📷</p>
+        <h1 class="screen-title">Scan the QR code on your table to start ordering.</h1>
+        <p class="muted">Point your phone’s camera at the code on the table tent.</p>
+      </div>
+    </section>
+
+    <!-- Fatal problem (invalid QR, unreachable server) -->
+    <section class="screen screen--center" id="screen-error" hidden>
+      <div class="empty-card">
+        <p class="empty-card__emoji" aria-hidden="true">⚠️</p>
+        <h1 class="screen-title" id="fatal-title">Something went wrong</h1>
+        <p class="muted" id="fatal-text"></p>
+        <button class="btn btn--primary" id="fatal-retry" type="button">Retry</button>
+      </div>
+    </section>
+
+    <!-- Menu -->
+    <section class="screen" id="screen-menu" hidden>
+      <div class="menu-sticky">
+        <div class="menu-toolbar">
+          <label class="search" for="menu-search">
+            <span class="search__icon" aria-hidden="true">🔍</span>
+            <input class="search__input" id="menu-search" type="search" placeholder="Search dishes…"
+                   autocomplete="off" enterkeyhint="search" />
+          </label>
+        </div>
+        <div class="tabs" id="menu-tabs" role="tablist" aria-label="Menu categories"></div>
+      </div>
+      <div class="menu-list" id="menu-list" role="tabpanel" aria-label="Menu items"></div>
+    </section>
+
+    <!-- Order tracking -->
+    <section class="screen" id="screen-tracking" hidden>
+      <div class="track-head">
+        <p class="eyebrow" id="track-table"></p>
+        <h1 class="screen-title" id="track-title">Your order</h1>
+        <p class="muted" id="track-subtitle"></p>
+      </div>
+
+      <div class="callout callout--danger" id="track-cancelled" role="alert" hidden>
+        <p class="callout__title">This order was cancelled</p>
+        <p class="muted">If this was unexpected, please speak to a member of staff.</p>
+      </div>
+
+      <ol class="steps" id="track-stepper" aria-label="Order progress"></ol>
+
+      <div class="card">
+        <h2 class="card__title">Items</h2>
+        <ul class="order-lines" id="track-items"></ul>
+        <div class="total-row">
+          <span>Total</span>
+          <span class="total-row__value" id="track-total">₹0.00</span>
+        </div>
+        <p class="notes-out" id="track-notes" hidden></p>
+      </div>
+
+      <div class="track-actions">
+        <button class="btn btn--ghost btn--block" id="btn-order-more" type="button">Order More</button>
+        <button class="btn btn--primary btn--block" id="btn-request-bill" type="button">Request Bill</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Sticky cart bar -->
+  <footer class="cart-bar" id="cart-bar" hidden>
+    <button class="cart-bar__inner" id="cart-bar-open" type="button" aria-haspopup="dialog">
+      <span class="cart-bar__count" id="cart-count">0 items</span>
+      <span class="cart-bar__cta">View cart</span>
+      <span class="cart-bar__total" id="cart-total" aria-live="polite">₹0.00</span>
+    </button>
+  </footer>
+
+  <!-- Cart drawer -->
+  <div class="scrim" id="cart-scrim"></div>
+  <aside class="drawer" id="cart-drawer" role="dialog" aria-modal="true"
+         aria-labelledby="cart-title" aria-hidden="true">
+    <div class="drawer__grip" aria-hidden="true"></div>
+    <header class="drawer__head">
+      <h2 class="drawer__title" id="cart-title">Your cart</h2>
+      <button class="icon-btn" id="cart-close" type="button" aria-label="Close cart">✕</button>
+    </header>
+    <div class="drawer__body">
+      <div class="inline-error" id="cart-error" role="alert" hidden>
+        <p class="inline-error__text" id="cart-error-text"></p>
+        <button class="btn btn--ghost btn--sm" id="cart-error-retry" type="button" hidden>Retry</button>
+      </div>
+      <p class="muted cart-empty" id="cart-empty" hidden>Your cart is empty.</p>
+      <ul class="cart-lines" id="cart-lines"></ul>
+      <div class="field">
+        <label class="field__label" for="special-notes">Special instructions</label>
+        <textarea class="field__input" id="special-notes" maxlength="255" rows="3"
+                  placeholder="Allergies, spice level, serving notes…"></textarea>
+        <p class="field__hint"><span id="notes-count">0</span>/255 characters</p>
+      </div>
+    </div>
+    <footer class="drawer__foot">
+      <div class="total-row">
+        <span>Total</span>
+        <span class="total-row__value" id="cart-foot-total" aria-live="polite">₹0.00</span>
+      </div>
+      <button class="btn btn--primary btn--block" id="place-order" type="button">Place Order</button>
+    </footer>
+  </aside>
+
+  <!-- Bill preview panel -->
+  <div class="scrim" id="bill-scrim"></div>
+  <aside class="drawer drawer--right" id="bill-panel" role="dialog" aria-modal="true"
+         aria-labelledby="bill-title" aria-hidden="true">
+    <header class="drawer__head">
+      <h2 class="drawer__title" id="bill-title">Request the bill</h2>
+      <button class="icon-btn" id="bill-close" type="button" aria-label="Close">✕</button>
+    </header>
+    <div class="drawer__body">
+      <div class="callout callout--ok">
+        <p class="callout__title">A member of staff has been notified</p>
+        <p class="muted">Your bill will be brought to the table shortly.</p>
+      </div>
+      <ul class="bill-lines" id="bill-lines"></ul>
+      <div class="bill-totals" id="bill-totals" hidden>
+        <div class="total-row"><span>Subtotal</span><span id="bill-subtotal">₹0.00</span></div>
+        <div class="total-row"><span>GST (5%)</span><span id="bill-gst">₹0.00</span></div>
+        <div class="total-row total-row--grand"><span>Grand total</span><span id="bill-grand">₹0.00</span></div>
+      </div>
+      <p class="muted" id="bill-status">Loading your orders…</p>
+      <p class="callout callout--warn">Preview only — the final bill is issued by staff.</p>
+    </div>
+  </aside>
+
+  <script src="app.js" defer></script>
+</body>
+</html>

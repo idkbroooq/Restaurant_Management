@@ -1,0 +1,27 @@
+# Build output & dependencies
+target/
+*.class
+
+# Tool binaries & Local Database runtime
+# The bundled Maven IS committed, because mvnw.cmd invokes it (zero-setup builds).
+.tools/*
+!.tools/apache-maven-3.9.6/
+.database/
+*.log
+
+# IDE & Editor Configurations
+.idea/
+*.iml
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+
+# Secrets & Environment Variables (Rule 9)
+.env
+.env.*
+!.env.example
+config/local.properties

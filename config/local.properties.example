@@ -1,0 +1,6 @@
+# Copy this file to config/local.properties and fill in YOUR local values.
+# config/local.properties is git-ignored, so real credentials never leave your machine.
+#
+# The database user is created by db/advanced.sql - see README.md ("Database Setup").
+spring.datasource.username=restaurant_app
+spring.datasource.password=CHANGE_ME

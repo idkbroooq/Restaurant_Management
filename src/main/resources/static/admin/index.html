@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Manager Console · Restaurant Admin</title>
+  <link rel="stylesheet" href="../fonts/fonts.css" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="../vendor/qrcode.min.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+
+  <!-- ---------------------------------------------------------------- Login -->
+  <div id="login-view" class="auth-view">
+    <form id="login-form" class="auth-card" novalidate>
+      <div class="brand">
+        <span class="brand-mark">RC</span>
+        <span class="brand-text"><strong>Restaurant Console</strong><small>Manager back-office</small></span>
+      </div>
+      <h1 class="auth-title">Manager sign in</h1>
+      <p class="auth-sub">Administrative access is restricted to staff with the MANAGER role.</p>
+
+      <label class="field">
+        <span class="field-label">Username</span>
+        <input id="login-username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required />
+      </label>
+      <label class="field">
+        <span class="field-label">Password</span>
+        <input id="login-password" type="password" autocomplete="current-password" required />
+      </label>
+
+      <p id="login-error" class="form-error" role="alert" hidden></p>
+      <button id="login-submit" type="submit" class="btn btn-primary btn-block">Sign in</button>
+    </form>
+  </div>
+
+  <!-- ------------------------------------------------------------ App shell -->
+  <div id="app-view" class="app-shell" hidden>
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark">RC</span>
+        <span class="brand-text"><strong>Restaurant Console</strong><small>Manager back-office</small></span>
+      </div>
+
+      <nav class="nav" aria-label="Sections">
+        <button class="nav-item" data-tab="menu" type="button">Menu</button>
+        <button class="nav-item" data-tab="categories" type="button">Categories</button>
+        <button class="nav-item" data-tab="tables" type="button">Tables</button>
+        <button class="nav-item" data-tab="reports" type="button">Reports</button>
+      </nav>
+
+      <div class="sidebar-foot">
+        <div class="who">
+          <span id="who-name" class="who-name"></span>
+          <span id="who-role" class="who-role"></span>
+        </div>
+        <button id="logout-btn" class="btn btn-ghost btn-block" type="button">Sign out</button>
+      </div>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <div>
+          <h1 id="tab-title" class="tab-title">Menu</h1>
+          <p id="tab-subtitle" class="tab-subtitle"></p>
+        </div>
+      </header>
+
+      <!-- Menu -->
+      <section id="panel-menu" class="panel" data-panel="menu">
+        <div class="panel-toolbar">
+          <span class="panel-note">Toggle availability to 86 an item; deleting an item archives it (soft delete).</span>
+          <button id="menu-new" class="btn btn-primary" type="button">New menu item</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Category</th>
+                <th scope="col" class="num">Price</th>
+                <th scope="col">Type</th>
+                <th scope="col">Spice</th>
+                <th scope="col">Volume</th>
+                <th scope="col">Availability</th>
+                <th scope="col" class="actions-col">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="menu-tbody"></tbody>
+          </table>
+        </div>
+        <p id="menu-empty" class="empty" hidden>No menu items yet. Create your first item.</p>
+      </section>
+
+      <!-- Categories -->
+      <section id="panel-categories" class="panel" data-panel="categories" hidden>
+        <div class="panel-toolbar">
+          <span class="panel-note">Categories group menu items and control their display order.</span>
+          <button id="category-new" class="btn btn-primary" type="button">New category</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Description</th>
+                <th scope="col" class="num">Display order</th>
+                <th scope="col">Active</th>
+              </tr>
+            </thead>
+            <tbody id="categories-tbody"></tbody>
+          </table>
+        </div>
+        <p id="categories-empty" class="empty" hidden>No categories yet.</p>
+      </section>
+
+      <!-- Tables -->
+      <section id="panel-tables" class="panel" data-panel="tables" hidden>
+        <div class="panel-toolbar">
+          <span class="panel-note">Each table has a QR code that opens the ordering menu for that table.</span>
+          <div class="toolbar-actions">
+            <button id="tables-print-all" class="btn btn-ghost" type="button">Print all QR codes</button>
+            <button id="table-new" class="btn btn-primary" type="button">New table</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col">Table</th>
+                <th scope="col" class="num">Capacity</th>
+                <th scope="col">QR token</th>
+                <th scope="col">Active</th>
+                <th scope="col">Current session</th>
+                <th scope="col" class="actions-col">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tables-tbody"></tbody>
+          </table>
+        </div>
+        <p id="tables-empty" class="empty" hidden>No tables configured.</p>
+      </section>
+
+      <!-- Reports -->
+      <section id="panel-reports" class="panel" data-panel="reports" hidden>
+        <div class="report-grid">
+          <article class="card">
+            <div class="card-head"><h2>Daily sales</h2></div>
+            <div class="card-tools">
+              <label class="field-inline"><span>From</span><input id="daily-start" type="date" /></label>
+              <label class="field-inline"><span>To</span><input id="daily-end" type="date" /></label>
+              <button id="daily-run" class="btn btn-primary" type="button">Run</button>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Date</th>
+                    <th scope="col" class="num">Tickets</th>
+                    <th scope="col" class="num">Completed</th>
+                    <th scope="col" class="num">Cancelled</th>
+                    <th scope="col" class="num">Gross revenue</th>
+                    <th scope="col" class="num">Avg ticket</th>
+                  </tr>
+                </thead>
+                <tbody id="daily-tbody"></tbody>
+              </table>
+            </div>
+            <p id="daily-empty" class="empty" hidden>No sales recorded for this period.</p>
+          </article>
+
+          <article class="card">
+            <div class="card-head"><h2>Top selling items</h2></div>
+            <div class="card-tools">
+              <label class="field-inline"><span>Show top</span>
+                <select id="top-limit">
+                  <option value="5">5</option>
+                  <option value="10">10</option>
+                  <option value="20">20</option>
+                </select>
+              </label>
+              <button id="top-run" class="btn btn-primary" type="button">Run</button>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th scope="col" class="num">#</th>
+                    <th scope="col">Item</th>
+                    <th scope="col">Category</th>
+                    <th scope="col">Type</th>
+                    <th scope="col" class="num">Units sold</th>
+                    <th scope="col" class="num">Revenue</th>
+                  </tr>
+                </thead>
+                <tbody id="top-tbody"></tbody>
+              </table>
+            </div>
+            <p id="top-empty" class="empty" hidden>No item sales recorded yet.</p>
+          </article>
+
+          <article class="card">
+            <div class="card-head"><h2>Busiest tables</h2><button id="busy-run" class="btn btn-ghost" type="button">Refresh</button></div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th scope="col" class="num">#</th>
+                    <th scope="col">Table</th>
+                    <th scope="col" class="num">Capacity</th>
+                    <th scope="col" class="num">Sessions</th>
+                    <th scope="col" class="num">Orders</th>
+                    <th scope="col" class="num">Revenue</th>
+                  </tr>
+                </thead>
+                <tbody id="busy-tbody"></tbody>
+              </table>
+            </div>
+            <p id="busy-empty" class="empty" hidden>No table activity recorded yet.</p>
+          </article>
+
+          <article class="card">
+            <div class="card-head"><h2>Average prep time</h2><button id="prep-run" class="btn btn-ghost" type="button">Refresh</button></div>
+            <div id="prep-body" class="stat-grid"></div>
+            <p id="prep-empty" class="empty" hidden>No completed kitchen tickets measured yet.</p>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="modal-root" class="modal-root" hidden></div>
+  <div id="toast-root" class="toast-root" aria-live="polite"></div>
+  <div id="print-root" class="print-sheet" aria-hidden="true"></div>
+
+</body>
+</html>

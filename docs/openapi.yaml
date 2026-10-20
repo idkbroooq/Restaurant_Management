@@ -1,0 +1,2213 @@
+openapi: 3.0.3
+info:
+  title: Restaurant Table-Ordering System API
+  description: |
+    Single Source of Truth OpenAPI contract for the Restaurant Table-Ordering System.
+    
+    ### Architectural Guidelines
+    - **Client Pricing Rule**: `POST /api/orders` carries **NO prices**. Prices are strictly retrieved from the database.
+    - **Financial Precision**: Money attributes are formatted as JSON numbers with 2 decimal places.
+    - **Time Standard**: All timestamps are formatted as ISO-8601 UTC strings (`YYYY-MM-DDTHH:mm:ssZ`).
+    - **Enum Conformity**: All enum strings match the MySQL 8 schema enums exactly.
+    - **State Transitions**: `PATCH /api/orders/{id}/status` enforces optimistic concurrency (`409 Conflict` if `current != from`).
+  version: 1.0.0
+  contact:
+    name: Restaurant Engineering Team
+    email: dev@restaurant.local
+
+servers:
+  - url: http://localhost:8080
+    description: Local Spring Boot Development Server
+
+tags:
+  - name: System
+    description: Operational health and readiness checks
+  - name: Customer - Tables & Sessions
+    description: QR code token resolution, table lookup, and session lifecycle
+  - name: Customer - Menu
+    description: Customer-facing menu catalog and categorized dishes
+  - name: Customer - Orders
+    description: Order placement, live order tracking, and table order history
+  - name: Customer - Billing & Payments
+    description: Bill calculation, invoice breakdowns, and payment settlement
+  - name: Authentication
+    description: Staff login, session validation, and logout
+  - name: Kitchen Operations
+    description: Real-time kitchen ticket queue and order state transitions
+  - name: Admin - Menu Management
+    description: Dish catalog management, price updates, and 86/availability toggling
+  - name: Admin - Category Management
+    description: Menu classification and display ordering
+  - name: Admin - Table Management
+    description: Table topology, seating capacity, and QR code token provisioning
+  - name: Admin - Reports
+    description: Business intelligence, sales aggregations, velocity, and prep time KPIs
+
+paths:
+
+  # ==========================================================================
+  # SYSTEM
+  # ==========================================================================
+  /api/health:
+    get:
+      tags:
+        - System
+      summary: Health check probe
+      description: Returns service uptime and database connectivity status.
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service is healthy and database is connected.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: "UP"
+                database: "CONNECTED"
+                timestamp: "2026-10-19T02:45:00Z"
+        '503':
+          description: Service degraded or database unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==========================================================================
+  # CUSTOMER - TABLES & SESSIONS
+  # ==========================================================================
+  /api/tables/{token}:
+    get:
+      tags:
+        - Customer - Tables & Sessions
+      summary: Resolve table by QR token
+      description: |
+        Scanned when a customer opens `menu.html?table=<token>`.
+        Returns table identity, capacity, and retrieves or initiates an active dining session.
+      operationId: getTableByToken
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: Unique QR token encoded on the table tent.
+          schema:
+            type: string
+            example: "tok_tbl_01_a9f8e7d6c5b4a321"
+      responses:
+        '200':
+          description: Table resolved successfully with active dining session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TableSessionResponse'
+              example:
+                tableId: 1
+                tableNumber: "T01"
+                capacity: 2
+                qrToken: "tok_tbl_01_a9f8e7d6c5b4a321"
+                isActive: true
+                session:
+                  sessionId: 1
+                  sessionToken: "sess_01_7a9f8b6c5d4e3f21"
+                  status: "ACTIVE"
+                  startTime: "2026-10-19T02:00:00Z"
+                  endTime: null
+        '404':
+          description: Table not found for the provided token or table is inactive.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "NOT_FOUND"
+                message: "Table with token 'tok_tbl_01_a9f8e7d6c5b4a321' not found or is inactive."
+                statusCode: 404
+                timestamp: "2026-10-19T02:45:00Z"
+
+  # ==========================================================================
+  # CUSTOMER - MENU
+  # ==========================================================================
+  /api/menu:
+    get:
+      tags:
+        - Customer - Menu
+      summary: Get active customer menu
+      description: |
+        Returns active categories and available menu items grouped or filtered.
+        Includes item prices, spice levels, volume metrics, and availability flags.
+      operationId: getCustomerMenu
+      parameters:
+        - name: categoryId
+          in: query
+          required: false
+          description: Filter items by specific category ID.
+          schema:
+            type: integer
+            example: 1
+        - name: itemType
+          in: query
+          required: false
+          description: Filter items by dish type.
+          schema:
+            $ref: '#/components/schemas/ItemType'
+      responses:
+        '200':
+          description: Menu catalog retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MenuCategoryWithItems'
+              example:
+                - categoryId: 1
+                  name: "Starters & Appetizers"
+                  description: "Tandoori, crispy grills and delightful appetizers"
+                  displayOrder: 1
+                  items:
+                    - itemId: 1
+                      categoryId: 1
+                      name: "Paneer Tikka"
+                      description: "Charcoal grilled cottage cheese cubes in spiced hung curd"
+                      price: 280.00
+                      itemType: "FOOD"
+                      spiceLevel: "HOT"
+                      volumeMl: null
+                      isAvailable: true
+                    - itemId: 2
+                      categoryId: 1
+                      name: "Chicken Malai Tikka"
+                      description: "Tender chicken morsels in creamy cashew-cheese marinade"
+                      price: 340.00
+                      itemType: "FOOD"
+                      spiceLevel: "MILD"
+                      volumeMl: null
+                      isAvailable: true
+
+  # ==========================================================================
+  # CUSTOMER - ORDERS
+  # ==========================================================================
+  /api/orders:
+    post:
+      tags:
+        - Customer - Orders
+      summary: Place a new order
+      description: |
+        Submits an order ticket for a dining session.
+        **CRITICAL RULE**: The request body carries **NO prices**.
+        The backend reads current prices from the database within a single atomic transaction.
+      operationId: placeOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+            example:
+              tableToken: "tok_tbl_01_a9f8e7d6c5b4a321"
+              sessionToken: "sess_01_7a9f8b6c5d4e3f21"
+              specialNotes: "Serve soup piping hot; extra green chilies"
+              items:
+                - itemId: 1
+                  quantity: 1
+                  itemNotes: "Extra mint chutney"
+                - itemId: 13
+                  quantity: 2
+                  itemNotes: "Crispy well done"
+                - itemId: 25
+                  quantity: 1
+                  itemNotes: null
+      responses:
+        '201':
+          description: Order placed successfully and entered PLACED status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+              example:
+                orderId: 14
+                sessionId: 1
+                tableNumber: "T01"
+                status: "PLACED"
+                totalAmount: 540.00
+                specialNotes: "Serve soup piping hot; extra green chilies"
+                createdAt: "2026-10-19T02:45:00Z"
+                updatedAt: "2026-10-19T02:45:00Z"
+                items:
+                  - orderItemId: 38
+                    itemId: 1
+                    name: "Paneer Tikka"
+                    itemType: "FOOD"
+                    spiceLevel: "HOT"
+                    volumeMl: null
+                    quantity: 1
+                    unitPrice: 280.00
+                    subtotal: 280.00
+                    itemNotes: "Extra mint chutney"
+                  - orderItemId: 39
+                    itemId: 13
+                    name: "Garlic Butter Naan"
+                    itemType: "FOOD"
+                    spiceLevel: null
+                    volumeMl: null
+                    quantity: 2
+                    unitPrice: 65.00
+                    subtotal: 130.00
+                    itemNotes: "Crispy well done"
+                  - orderItemId: 40
+                    itemId: 25
+                    name: "Alphonso Mango Lassi"
+                    itemType: "BEVERAGE"
+                    spiceLevel: null
+                    volumeMl: 350
+                    quantity: 1
+                    unitPrice: 130.00
+                    subtotal: 130.00
+                    itemNotes: null
+        '400':
+          description: Invalid order payload (e.g. empty item cart, non-positive quantity, 86'd item).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "BAD_REQUEST"
+                message: "Cart validation failed: Item 'Royal Kulfi Falooda' is currently sold out."
+                statusCode: 400
+                timestamp: "2026-10-19T02:45:00Z"
+        '404':
+          description: Table token or session token not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/orders/{id}:
+    get:
+      tags:
+        - Customer - Orders
+      summary: Get order details by ID
+      description: Returns full itemized details, status, and transition audit history for an order.
+      operationId: getOrderById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Numeric primary key ID of the order.
+          schema:
+            type: integer
+            example: 5
+      responses:
+        '200':
+          description: Order details found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '404':
+          description: Order with specified ID does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/tables/{token}/orders:
+    get:
+      tags:
+        - Customer - Orders
+      summary: Get all orders for table's active session
+      description: Returns the list of all orders submitted during the current table party's visit.
+      operationId: getOrdersByTableToken
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: Unique QR token of the table.
+          schema:
+            type: string
+            example: "tok_tbl_03_c7d6c5b4a3210987"
+      responses:
+        '200':
+          description: Order history for current table session.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrderSummaryResponse'
+              example:
+                - orderId: 5
+                  sessionId: 3
+                  status: "PREPARING"
+                  totalAmount: 915.00
+                  itemCount: 4
+                  createdAt: "2026-10-19T02:20:00Z"
+                - orderId: 8
+                  sessionId: 3
+                  status: "READY"
+                  totalAmount: 270.00
+                  itemCount: 2
+                  createdAt: "2026-10-19T02:35:00Z"
+        '404':
+          description: Table token invalid or table has no active session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==========================================================================
+  # CUSTOMER - BILLING & PAYMENTS
+  # ==========================================================================
+  /api/sessions/{id}/bill:
+    post:
+      tags:
+        - Customer - Billing & Payments
+      summary: Generate bill breakdown for session
+      description: |
+        Aggregates all non-cancelled orders for a dining session and returns an itemized bill
+        with subtotal, tax (5% GST), and grand total.
+      operationId: generateSessionBill
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Dining session ID.
+          schema:
+            type: integer
+            example: 8
+      responses:
+        '200':
+          description: Bill generated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillResponse'
+              example:
+                sessionId: 8
+                tableNumber: "T08"
+                sessionStatus: "ACTIVE"
+                activeOrderCount: 1
+                subtotal: 1035.00
+                taxPercentage: 5.00
+                taxAmount: 51.75
+                grandTotal: 1086.75
+                orders:
+                  - orderId: 9
+                    totalAmount: 1035.00
+                    status: "SERVED"
+                    createdAt: "2026-10-19T01:15:00Z"
+        '400':
+          description: Session has no eligible orders or is cancelled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Dining session not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/sessions/{id}/pay:
+    post:
+      tags:
+        - Customer - Billing & Payments
+      summary: Settle session bill payment
+      description: |
+        Processes payment for a dining session via CASH, CARD, or UPI.
+        Upon successful payment recording, the dining session status is transitioned to COMPLETED.
+      operationId: processSessionPayment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Dining session ID to settle.
+          schema:
+            type: integer
+            example: 8
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+            example:
+              paymentMethod: "UPI"
+              amount: 1086.75
+              transactionRef: "UPI/20261019/9876543210"
+      responses:
+        '200':
+          description: Payment processed and dining session closed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+              example:
+                paymentId: 1
+                sessionId: 8
+                amount: 1086.75
+                paymentMethod: "UPI"
+                paymentStatus: "COMPLETED"
+                transactionRef: "UPI/20261019/9876543210"
+                paidAt: "2026-10-19T02:40:00Z"
+                sessionStatus: "COMPLETED"
+        '400':
+          description: Payment amount mismatch or session already settled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Dining session not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict (e.g. duplicate transaction reference or pending orders unserved).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==========================================================================
+  # AUTHENTICATION
+  # ==========================================================================
+  /api/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Staff login
+      description: Authenticates staff (CHEF, WAITER, MANAGER) using BCrypt-hashed credentials.
+      operationId: staffLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              username: "chef_mario"
+              password: "ChefPassword123!"
+      responses:
+        '200':
+          description: Authentication successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              example:
+                token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                staff:
+                  staffId: 1
+                  username: "chef_mario"
+                  fullName: "Mario Batali"
+                  role: "CHEF"
+        '400':
+          description: Username or password missing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid username or password.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "UNAUTHORIZED"
+                message: "Bad credentials: invalid username or password."
+                statusCode: 401
+                timestamp: "2026-10-19T02:45:00Z"
+
+  /api/auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Staff logout
+      description: Invalidates active session or authorization token.
+      operationId: staffLogout
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      responses:
+        '200':
+          description: Logged out successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                message: "Logged out successfully."
+        '401':
+          description: Not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current authenticated staff profile
+      description: Returns identity and role permissions of current caller.
+      operationId: getAuthMe
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      responses:
+        '200':
+          description: Profile retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffProfile'
+              example:
+                staffId: 1
+                username: "chef_mario"
+                fullName: "Mario Batali"
+                role: "CHEF"
+        '401':
+          description: Caller is not authenticated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==========================================================================
+  # KITCHEN OPERATIONS
+  # ==========================================================================
+  /api/kitchen/orders:
+    get:
+      tags:
+        - Kitchen Operations
+      summary: Kitchen real-time ticket queue
+      description: |
+        Polled every 3 seconds by the kitchen display.
+        Returns all tickets in PLACED, ACCEPTED, PREPARING, or READY states, sorted by wait time.
+      operationId: getKitchenActiveOrders
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Filter ticket queue by specific operational status.
+          schema:
+            $ref: '#/components/schemas/OrderStatus'
+      responses:
+        '200':
+          description: Active kitchen tickets queue.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/KitchenOrderTicket'
+              example:
+                - orderId: 6
+                  tableNumber: "T02"
+                  status: "PREPARING"
+                  orderPlacedAt: "2026-10-19T02:15:00Z"
+                  elapsedMinutes: 30
+                  specialNotes: "No coriander garnish on Butter Chicken"
+                  items:
+                    - orderItemId: 18
+                      itemId: 6
+                      name: "Butter Chicken"
+                      itemType: "FOOD"
+                      spiceLevel: "MILD"
+                      volumeMl: null
+                      quantity: 1
+                      itemNotes: "Boneless meat pieces"
+                    - orderItemId: 19
+                      itemId: 8
+                      name: "Dal Makhani"
+                      itemType: "FOOD"
+                      spiceLevel: "MILD"
+                      volumeMl: null
+                      quantity: 1
+                      itemNotes: "Slow cooked creamy dal"
+        '401':
+          description: Unauthorized. Staff authentication required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/orders/{id}/status:
+    patch:
+      tags:
+        - Kitchen Operations
+      summary: Update order status along lifecycle
+      description: |
+        Advances ticket along the state machine:
+        `PLACED` -> `ACCEPTED` -> `PREPARING` -> `READY` -> `SERVED` (or `CANCELLED`).
+        
+        **Concurrency Rule**: The body requires `{ "from": "...", "to": "..." }`.
+        If the current status in the database does NOT match `from`, returns `409 Conflict`.
+      operationId: updateOrderStatus
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Order ID to transition.
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrderStatusRequest'
+            example:
+              from: "PLACED"
+              to: "ACCEPTED"
+              notes: "Chef acknowledged ticket"
+      responses:
+        '200':
+          description: Order status updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+              example:
+                orderId: 1
+                sessionId: 7
+                tableNumber: "T07"
+                status: "ACCEPTED"
+                totalAmount: 485.00
+                specialNotes: "Please serve soup extra piping hot"
+                createdAt: "2026-10-19T02:42:00Z"
+                updatedAt: "2026-10-19T02:45:00Z"
+                items: []
+        '400':
+          description: Invalid transition requested (e.g. jumping PLACED -> SERVED).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "BAD_REQUEST"
+                message: "Invalid status transition: PLACED order can only transition to ACCEPTED or CANCELLED."
+                statusCode: 400
+                timestamp: "2026-10-19T02:45:00Z"
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Order not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Optimistic concurrency conflict; order was updated concurrently.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusConflictErrorResponse'
+              example:
+                error: "CONFLICT"
+                message: "Status conflict: expected current status was 'PLACED', but order is currently 'ACCEPTED'."
+                statusCode: 409
+                timestamp: "2026-10-19T02:45:00Z"
+                expectedStatus: "PLACED"
+                actualStatus: "ACCEPTED"
+
+  # ==========================================================================
+  # ADMIN - MENU MANAGEMENT
+  # ==========================================================================
+  /api/admin/menu:
+    get:
+      tags:
+        - Admin - Menu Management
+      summary: Admin menu catalog
+      description: Retrieves all menu items including inactive and sold out items.
+      operationId: getAdminMenu
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      responses:
+        '200':
+          description: Full menu inventory.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MenuItem'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden. Requires MANAGER role.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Admin - Menu Management
+      summary: Create new menu item
+      description: Adds a new dish or drink subject to item_type domain CHECK constraints.
+      operationId: createMenuItem
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMenuItemRequest'
+            example:
+              categoryId: 1
+              name: "Amritsari Fish Tikka"
+              description: "Carom-seed spiced river sole fish cooked in tandoor"
+              price: 450.00
+              itemType: "FOOD"
+              spiceLevel: "HOT"
+              volumeMl: null
+              isAvailable: true
+      responses:
+        '201':
+          description: Menu item created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItem'
+        '400':
+          description: Validation error (e.g. price <= 0 or beverage missing volume_ml).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/admin/menu/{id}:
+    put:
+      tags:
+        - Admin - Menu Management
+      summary: Update menu item details
+      description: Modifies name, price, category, or description of an existing dish.
+      operationId: updateMenuItem
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Item ID to update.
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMenuItemRequest'
+      responses:
+        '200':
+          description: Item updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItem'
+        '400':
+          description: Invalid data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Menu item not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Admin - Menu Management
+      summary: Soft-delete menu item
+      description: Sets `isAvailable = false` to preserve historical order lines and FK integrity.
+      operationId: deleteMenuItem
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Item ID to discontinue.
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Menu item discontinued / soft-deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+              example:
+                message: "Menu item 'Paneer Tikka' soft-deleted (isAvailable set to false)."
+        '404':
+          description: Item not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/admin/menu/{id}/availability:
+    patch:
+      tags:
+        - Admin - Menu Management
+      summary: Quick-toggle 86 / availability
+      description: Used by chef or manager to mark an item as sold out or back in stock.
+      operationId: toggleItemAvailability
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Item ID.
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - isAvailable
+              properties:
+                isAvailable:
+                  type: boolean
+                  example: false
+      responses:
+        '200':
+          description: Availability status updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MenuItem'
+        '404':
+          description: Item not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==========================================================================
+  # ADMIN - CATEGORY MANAGEMENT
+  # ==========================================================================
+  /api/admin/categories:
+    get:
+      tags:
+        - Admin - Category Management
+      summary: List all categories
+      description: Retrieves categories ordered by displayOrder.
+      operationId: getAdminCategories
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      responses:
+        '200':
+          description: List of categories.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+
+    post:
+      tags:
+        - Admin - Category Management
+      summary: Create menu category
+      description: Creates a new menu classification.
+      operationId: createCategory
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCategoryRequest'
+            example:
+              name: "Chef Specials"
+              description: "Seasonal artisanal dishes crafted by Chef Mario"
+              displayOrder: 7
+              isActive: true
+      responses:
+        '201':
+          description: Category created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          description: Validation error or duplicate name.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==========================================================================
+  # ADMIN - TABLE MANAGEMENT
+  # ==========================================================================
+  /api/admin/tables:
+    get:
+      tags:
+        - Admin - Table Management
+      summary: List all restaurant tables
+      description: Retrieves table inventory, current session status, and QR tokens.
+      operationId: getAdminTables
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      responses:
+        '200':
+          description: Table list with session statuses.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RestaurantTable'
+
+    post:
+      tags:
+        - Admin - Table Management
+      summary: Create new restaurant table
+      description: Generates a new table and auto-provisions a secure, unique QR token.
+      operationId: createTable
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTableRequest'
+            example:
+              tableNumber: "T11"
+              capacity: 4
+      responses:
+        '201':
+          description: Table created with generated qrToken.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RestaurantTable'
+
+  /api/admin/tables/{id}:
+    put:
+      tags:
+        - Admin - Table Management
+      summary: Update table attributes
+      description: Updates table number, capacity, or active status.
+      operationId: updateTable
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Table ID.
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTableRequest'
+      responses:
+        '200':
+          description: Table updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RestaurantTable'
+        '404':
+          description: Table not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/admin/tables/{id}/qr:
+    get:
+      tags:
+        - Admin - Table Management
+      summary: Get table QR code configuration
+      description: Returns table QR token and pre-composed client menu URL for table-tent printing.
+      operationId: getTableQrCode
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Table ID.
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: QR configuration details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TableQrResponse'
+              example:
+                tableId: 1
+                tableNumber: "T01"
+                qrToken: "tok_tbl_01_a9f8e7d6c5b4a321"
+                menuUrl: "http://localhost:8080/menu.html?table=tok_tbl_01_a9f8e7d6c5b4a321"
+                qrCodeDataUrl: "data:image/svg+xml;utf8,<svg>...</svg>"
+        '404':
+          description: Table not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==========================================================================
+  # ADMIN - REPORTS
+  # ==========================================================================
+  /api/admin/reports/daily-sales:
+    get:
+      tags:
+        - Admin - Reports
+      summary: Daily sales summary report
+      description: Financial metrics grouped by date (order count, gross revenue, average spend).
+      operationId: getDailySalesReport
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: startDate
+          in: query
+          required: false
+          description: Start date filter (YYYY-MM-DD).
+          schema:
+            type: string
+            format: date
+            example: "2026-10-01"
+        - name: endDate
+          in: query
+          required: false
+          description: End date filter (YYYY-MM-DD).
+          schema:
+            type: string
+            format: date
+            example: "2026-10-19"
+      responses:
+        '200':
+          description: Daily sales records.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DailySalesRow'
+              example:
+                - salesDate: "2026-10-19"
+                  totalTicketsPlaced: 13
+                  completedTickets: 12
+                  cancelledTickets: 1
+                  dailyGrossRevenue: 8200.00
+                  avgTicketSize: 683.33
+
+  /api/admin/reports/top-items:
+    get:
+      tags:
+        - Admin - Reports
+      summary: Top selling menu items
+      description: Menu items ranked by total units sold and gross revenue generated.
+      operationId: getTopSellingItems
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Number of top items to return (default 5).
+          schema:
+            type: integer
+            default: 5
+            example: 5
+      responses:
+        '200':
+          description: Top selling dishes.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TopItemRow'
+              example:
+                - itemId: 13
+                  itemName: "Garlic Butter Naan"
+                  category: "Breads & Rice"
+                  itemType: "FOOD"
+                  totalUnitsSold: 5
+                  totalRevenueGenerated: 325.00
+                - itemId: 25
+                  itemName: "Alphonso Mango Lassi"
+                  category: "Beverages & Mocktails"
+                  itemType: "BEVERAGE"
+                  totalUnitsSold: 4
+                  totalRevenueGenerated: 520.00
+
+  /api/admin/reports/busiest-tables:
+    get:
+      tags:
+        - Admin - Reports
+      summary: Busiest tables utilization report
+      description: Table turnover analysis ranked by total hosted sessions and revenue earned.
+      operationId: getBusiestTables
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      responses:
+        '200':
+          description: Table utilization rankings.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BusiestTableRow'
+              example:
+                - tableId: 1
+                  tableNumber: "T01"
+                  capacity: 2
+                  sessionsHosted: 1
+                  totalOrdersPlaced: 2
+                  grossRevenueEarned: 1205.00
+                - tableId: 3
+                  tableNumber: "T03"
+                  capacity: 4
+                  sessionsHosted: 1
+                  totalOrdersPlaced: 2
+                  grossRevenueEarned: 1185.00
+
+  /api/admin/reports/avg-prep-time:
+    get:
+      tags:
+        - Admin - Reports
+      summary: Kitchen average preparation time KPI
+      description: Measures turnaround time between ticket acceptance and ready status.
+      operationId: getAvgPrepTime
+      security:
+        - BearerAuth: []
+        - CookieAuth: []
+      responses:
+        '200':
+          description: Kitchen prep time KPI metrics.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvgPrepTimeResponse'
+              example:
+                ordersMeasured: 5
+                avgKitchenPrepMinutes: 20.80
+                fastestPrepMinutes: 12
+                slowestPrepMinutes: 27
+
+# ============================================================================
+# COMPONENTS & SCHEMAS
+# ============================================================================
+components:
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT authentication header `Bearer <token>`
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: JSESSIONID
+      description: Standard Spring Boot session cookie
+
+  schemas:
+
+    # ------------------------------------------------------------------------
+    # Enums
+    # ------------------------------------------------------------------------
+    ItemType:
+      type: string
+      enum:
+        - FOOD
+        - BEVERAGE
+        - DESSERT
+      description: High-level classification governing spice and volume rules.
+
+    SpiceLevel:
+      type: string
+      nullable: true
+      enum:
+        - MILD
+        - MEDIUM
+        - HOT
+        - EXTRA_HOT
+      description: Culinary heat level. Forbidden on BEVERAGE and DESSERT.
+
+    StaffRole:
+      type: string
+      enum:
+        - CHEF
+        - WAITER
+        - MANAGER
+
+    OrderStatus:
+      type: string
+      enum:
+        - PLACED
+        - ACCEPTED
+        - PREPARING
+        - READY
+        - SERVED
+        - CANCELLED
+
+    SessionStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - COMPLETED
+        - CANCELLED
+
+    PaymentMethod:
+      type: string
+      enum:
+        - CASH
+        - CARD
+        - UPI
+
+    PaymentStatus:
+      type: string
+      enum:
+        - PENDING
+        - COMPLETED
+        - FAILED
+        - REFUNDED
+
+    # ------------------------------------------------------------------------
+    # Core Domain Entities
+    # ------------------------------------------------------------------------
+    MenuItem:
+      type: object
+      required:
+        - itemId
+        - categoryId
+        - name
+        - price
+        - itemType
+        - isAvailable
+      properties:
+        itemId:
+          type: integer
+          example: 1
+        categoryId:
+          type: integer
+          example: 1
+        categoryName:
+          type: string
+          example: "Starters & Appetizers"
+        name:
+          type: string
+          example: "Paneer Tikka"
+        description:
+          type: string
+          nullable: true
+          example: "Charcoal grilled cottage cheese cubes in spiced hung curd"
+        price:
+          type: number
+          format: double
+          example: 280.00
+        itemType:
+          $ref: '#/components/schemas/ItemType'
+        spiceLevel:
+          $ref: '#/components/schemas/SpiceLevel'
+        volumeMl:
+          type: integer
+          nullable: true
+          example: null
+        isAvailable:
+          type: boolean
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-10-19T02:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-10-19T02:00:00Z"
+
+    Category:
+      type: object
+      required:
+        - categoryId
+        - name
+        - displayOrder
+        - isActive
+      properties:
+        categoryId:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "Starters & Appetizers"
+        description:
+          type: string
+          nullable: true
+          example: "Tandoori, crispy grills and delightful appetizers"
+        displayOrder:
+          type: integer
+          example: 1
+        isActive:
+          type: boolean
+          example: true
+
+    MenuCategoryWithItems:
+      type: object
+      required:
+        - categoryId
+        - name
+        - displayOrder
+        - items
+      properties:
+        categoryId:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "Starters & Appetizers"
+        description:
+          type: string
+          nullable: true
+          example: "Tandoori, crispy grills and delightful appetizers"
+        displayOrder:
+          type: integer
+          example: 1
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MenuItem'
+
+    RestaurantTable:
+      type: object
+      required:
+        - tableId
+        - tableNumber
+        - capacity
+        - qrToken
+        - isActive
+      properties:
+        tableId:
+          type: integer
+          example: 1
+        tableNumber:
+          type: string
+          example: "T01"
+        capacity:
+          type: integer
+          example: 2
+        qrToken:
+          type: string
+          example: "tok_tbl_01_a9f8e7d6c5b4a321"
+        isActive:
+          type: boolean
+          example: true
+        currentSessionId:
+          type: integer
+          nullable: true
+          example: 1
+        currentSessionStatus:
+          $ref: '#/components/schemas/SessionStatus'
+
+    DiningSession:
+      type: object
+      required:
+        - sessionId
+        - sessionToken
+        - status
+        - startTime
+      properties:
+        sessionId:
+          type: integer
+          example: 1
+        sessionToken:
+          type: string
+          example: "sess_01_7a9f8b6c5d4e3f21"
+        status:
+          $ref: '#/components/schemas/SessionStatus'
+        startTime:
+          type: string
+          format: date-time
+          example: "2026-10-19T02:00:00Z"
+        endTime:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+
+    OrderItemDetail:
+      type: object
+      required:
+        - orderItemId
+        - itemId
+        - name
+        - itemType
+        - quantity
+        - unitPrice
+        - subtotal
+      properties:
+        orderItemId:
+          type: integer
+          example: 38
+        itemId:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "Paneer Tikka"
+        itemType:
+          $ref: '#/components/schemas/ItemType'
+        spiceLevel:
+          $ref: '#/components/schemas/SpiceLevel'
+        volumeMl:
+          type: integer
+          nullable: true
+          example: null
+        quantity:
+          type: integer
+          example: 1
+        unitPrice:
+          type: number
+          format: double
+          description: Frozen snapshot price at moment order was submitted.
+          example: 280.00
+        subtotal:
+          type: number
+          format: double
+          description: Stored computation (quantity * unitPrice).
+          example: 280.00
+        itemNotes:
+          type: string
+          nullable: true
+          example: "Extra mint chutney"
+
+    OrderResponse:
+      type: object
+      required:
+        - orderId
+        - sessionId
+        - tableNumber
+        - status
+        - totalAmount
+        - createdAt
+        - updatedAt
+        - items
+      properties:
+        orderId:
+          type: integer
+          example: 14
+        sessionId:
+          type: integer
+          example: 1
+        tableNumber:
+          type: string
+          example: "T01"
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        totalAmount:
+          type: number
+          format: double
+          example: 540.00
+        specialNotes:
+          type: string
+          nullable: true
+          example: "Serve soup piping hot; extra green chilies"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-10-19T02:45:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2026-10-19T02:45:00Z"
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItemDetail'
+
+    OrderSummaryResponse:
+      type: object
+      required:
+        - orderId
+        - sessionId
+        - status
+        - totalAmount
+        - itemCount
+        - createdAt
+      properties:
+        orderId:
+          type: integer
+          example: 5
+        sessionId:
+          type: integer
+          example: 3
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        totalAmount:
+          type: number
+          format: double
+          example: 915.00
+        itemCount:
+          type: integer
+          example: 4
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-10-19T02:20:00Z"
+
+    KitchenOrderTicket:
+      type: object
+      required:
+        - orderId
+        - tableNumber
+        - status
+        - orderPlacedAt
+        - elapsedMinutes
+        - items
+      properties:
+        orderId:
+          type: integer
+          example: 6
+        tableNumber:
+          type: string
+          example: "T02"
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        orderPlacedAt:
+          type: string
+          format: date-time
+          example: "2026-10-19T02:15:00Z"
+        elapsedMinutes:
+          type: integer
+          example: 30
+        specialNotes:
+          type: string
+          nullable: true
+          example: "No coriander garnish on Butter Chicken"
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItemDetail'
+
+    StaffProfile:
+      type: object
+      required:
+        - staffId
+        - username
+        - fullName
+        - role
+      properties:
+        staffId:
+          type: integer
+          example: 1
+        username:
+          type: string
+          example: "chef_mario"
+        fullName:
+          type: string
+          example: "Mario Batali"
+        role:
+          $ref: '#/components/schemas/StaffRole'
+
+    # ------------------------------------------------------------------------
+    # Request Payloads
+    # ------------------------------------------------------------------------
+    OrderItemRequest:
+      type: object
+      required:
+        - itemId
+        - quantity
+      properties:
+        itemId:
+          type: integer
+          description: Menu item ID from the database.
+          example: 1
+        quantity:
+          type: integer
+          minimum: 1
+          description: Positive quantity count.
+          example: 2
+        itemNotes:
+          type: string
+          nullable: true
+          maxLength: 255
+          description: Line-item customization notes.
+          example: "Extra mint chutney"
+
+    CreateOrderRequest:
+      type: object
+      required:
+        - tableToken
+        - items
+      properties:
+        tableToken:
+          type: string
+          description: Unique QR token of the table.
+          example: "tok_tbl_01_a9f8e7d6c5b4a321"
+        sessionToken:
+          type: string
+          nullable: true
+          description: Active session token (optional; server binds or starts active session).
+          example: "sess_01_7a9f8b6c5d4e3f21"
+        specialNotes:
+          type: string
+          nullable: true
+          maxLength: 255
+          example: "Serve soup piping hot; extra green chilies"
+        items:
+          type: array
+          minItems: 1
+          description: List of items to order. Contains NO price properties!
+          items:
+            $ref: '#/components/schemas/OrderItemRequest'
+
+    UpdateOrderStatusRequest:
+      type: object
+      required:
+        - from
+        - to
+      properties:
+        from:
+          $ref: '#/components/schemas/OrderStatus'
+          description: Current status expected by the client caller.
+        to:
+          $ref: '#/components/schemas/OrderStatus'
+          description: New status to transition the order into.
+        notes:
+          type: string
+          nullable: true
+          maxLength: 255
+          example: "Chef acknowledged ticket"
+
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          example: "chef_mario"
+        password:
+          type: string
+          format: password
+          example: "ChefPassword123!"
+
+    PaymentRequest:
+      type: object
+      required:
+        - paymentMethod
+        - amount
+      properties:
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+        amount:
+          type: number
+          format: double
+          description: Exact grand total amount to settle.
+          example: 1086.75
+        transactionRef:
+          type: string
+          nullable: true
+          maxLength: 100
+          description: External UPI reference or card auth transaction code.
+          example: "UPI/20261019/9876543210"
+
+    CreateMenuItemRequest:
+      type: object
+      required:
+        - categoryId
+        - name
+        - price
+        - itemType
+      properties:
+        categoryId:
+          type: integer
+          example: 1
+        name:
+          type: string
+          maxLength: 100
+          example: "Paneer Tikka"
+        description:
+          type: string
+          nullable: true
+          example: "Charcoal grilled cottage cheese cubes in spiced hung curd"
+        price:
+          type: number
+          format: double
+          minimum: 0.01
+          example: 280.00
+        itemType:
+          $ref: '#/components/schemas/ItemType'
+        spiceLevel:
+          $ref: '#/components/schemas/SpiceLevel'
+        volumeMl:
+          type: integer
+          nullable: true
+          example: null
+        isAvailable:
+          type: boolean
+          default: true
+          example: true
+
+    CreateCategoryRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          maxLength: 50
+          example: "Chef Specials"
+        description:
+          type: string
+          nullable: true
+          maxLength: 255
+          example: "Seasonal artisan specials"
+        displayOrder:
+          type: integer
+          default: 0
+          example: 7
+        isActive:
+          type: boolean
+          default: true
+          example: true
+
+    CreateTableRequest:
+      type: object
+      required:
+        - tableNumber
+        - capacity
+      properties:
+        tableNumber:
+          type: string
+          maxLength: 20
+          example: "T11"
+        capacity:
+          type: integer
+          minimum: 1
+          example: 4
+        isActive:
+          type: boolean
+          default: true
+          example: true
+
+    # ------------------------------------------------------------------------
+    # Responses
+    # ------------------------------------------------------------------------
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - database
+        - timestamp
+      properties:
+        status:
+          type: string
+          example: "UP"
+        database:
+          type: string
+          example: "CONNECTED"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-10-19T02:45:00Z"
+
+    TableSessionResponse:
+      type: object
+      required:
+        - tableId
+        - tableNumber
+        - capacity
+        - qrToken
+        - isActive
+        - session
+      properties:
+        tableId:
+          type: integer
+          example: 1
+        tableNumber:
+          type: string
+          example: "T01"
+        capacity:
+          type: integer
+          example: 2
+        qrToken:
+          type: string
+          example: "tok_tbl_01_a9f8e7d6c5b4a321"
+        isActive:
+          type: boolean
+          example: true
+        session:
+          $ref: '#/components/schemas/DiningSession'
+
+    BillResponse:
+      type: object
+      required:
+        - sessionId
+        - tableNumber
+        - sessionStatus
+        - activeOrderCount
+        - subtotal
+        - taxPercentage
+        - taxAmount
+        - grandTotal
+        - orders
+      properties:
+        sessionId:
+          type: integer
+          example: 8
+        tableNumber:
+          type: string
+          example: "T08"
+        sessionStatus:
+          $ref: '#/components/schemas/SessionStatus'
+        activeOrderCount:
+          type: integer
+          example: 1
+        subtotal:
+          type: number
+          format: double
+          example: 1035.00
+        taxPercentage:
+          type: number
+          format: double
+          example: 5.00
+        taxAmount:
+          type: number
+          format: double
+          example: 51.75
+        grandTotal:
+          type: number
+          format: double
+          example: 1086.75
+        orders:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderSummaryResponse'
+
+    PaymentResponse:
+      type: object
+      required:
+        - paymentId
+        - sessionId
+        - amount
+        - paymentMethod
+        - paymentStatus
+        - paidAt
+        - sessionStatus
+      properties:
+        paymentId:
+          type: integer
+          example: 1
+        sessionId:
+          type: integer
+          example: 8
+        amount:
+          type: number
+          format: double
+          example: 1086.75
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+        paymentStatus:
+          $ref: '#/components/schemas/PaymentStatus'
+        transactionRef:
+          type: string
+          nullable: true
+          example: "UPI/20261019/9876543210"
+        paidAt:
+          type: string
+          format: date-time
+          example: "2026-10-19T02:40:00Z"
+        sessionStatus:
+          $ref: '#/components/schemas/SessionStatus'
+
+    LoginResponse:
+      type: object
+      required:
+        - token
+        - staff
+      properties:
+        token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        staff:
+          $ref: '#/components/schemas/StaffProfile'
+
+    TableQrResponse:
+      type: object
+      required:
+        - tableId
+        - tableNumber
+        - qrToken
+        - menuUrl
+      properties:
+        tableId:
+          type: integer
+          example: 1
+        tableNumber:
+          type: string
+          example: "T01"
+        qrToken:
+          type: string
+          example: "tok_tbl_01_a9f8e7d6c5b4a321"
+        menuUrl:
+          type: string
+          example: "http://localhost:8080/menu.html?table=tok_tbl_01_a9f8e7d6c5b4a321"
+        qrCodeDataUrl:
+          type: string
+          nullable: true
+          example: "data:image/svg+xml;utf8,<svg>...</svg>"
+
+    MessageResponse:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          example: "Operation completed successfully."
+
+    # ------------------------------------------------------------------------
+    # Report Rows
+    # ------------------------------------------------------------------------
+    DailySalesRow:
+      type: object
+      required:
+        - salesDate
+        - totalTicketsPlaced
+        - completedTickets
+        - cancelledTickets
+        - dailyGrossRevenue
+        - avgTicketSize
+      properties:
+        salesDate:
+          type: string
+          format: date
+          example: "2026-10-19"
+        totalTicketsPlaced:
+          type: integer
+          example: 13
+        completedTickets:
+          type: integer
+          example: 12
+        cancelledTickets:
+          type: integer
+          example: 1
+        dailyGrossRevenue:
+          type: number
+          format: double
+          example: 8200.00
+        avgTicketSize:
+          type: number
+          format: double
+          example: 683.33
+
+    TopItemRow:
+      type: object
+      required:
+        - itemId
+        - itemName
+        - category
+        - itemType
+        - totalUnitsSold
+        - totalRevenueGenerated
+      properties:
+        itemId:
+          type: integer
+          example: 13
+        itemName:
+          type: string
+          example: "Garlic Butter Naan"
+        category:
+          type: string
+          example: "Breads & Rice"
+        itemType:
+          $ref: '#/components/schemas/ItemType'
+        totalUnitsSold:
+          type: integer
+          example: 5
+        totalRevenueGenerated:
+          type: number
+          format: double
+          example: 325.00
+
+    BusiestTableRow:
+      type: object
+      required:
+        - tableId
+        - tableNumber
+        - capacity
+        - sessionsHosted
+        - totalOrdersPlaced
+        - grossRevenueEarned
+      properties:
+        tableId:
+          type: integer
+          example: 1
+        tableNumber:
+          type: string
+          example: "T01"
+        capacity:
+          type: integer
+          example: 2
+        sessionsHosted:
+          type: integer
+          example: 1
+        totalOrdersPlaced:
+          type: integer
+          example: 2
+        grossRevenueEarned:
+          type: number
+          format: double
+          example: 1205.00
+
+    AvgPrepTimeResponse:
+      type: object
+      required:
+        - ordersMeasured
+        - avgKitchenPrepMinutes
+        - fastestPrepMinutes
+        - slowestPrepMinutes
+      properties:
+        ordersMeasured:
+          type: integer
+          example: 5
+        avgKitchenPrepMinutes:
+          type: number
+          format: double
+          example: 20.80
+        fastestPrepMinutes:
+          type: integer
+          example: 12
+        slowestPrepMinutes:
+          type: integer
+          example: 27
+
+    # ------------------------------------------------------------------------
+    # Standard Error Responses
+    # ------------------------------------------------------------------------
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+        - statusCode
+        - timestamp
+      properties:
+        error:
+          type: string
+          description: Standard error code.
+          example: "BAD_REQUEST"
+        message:
+          type: string
+          description: Human-readable error description.
+          example: "Invalid input provided."
+        statusCode:
+          type: integer
+          example: 400
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-10-19T02:45:00Z"
+        details:
+          type: array
+          nullable: true
+          items:
+            type: string
+          example:
+            - "Field 'quantity' must be greater than 0"
+
+    StatusConflictErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+        - statusCode
+        - timestamp
+        - expectedStatus
+        - actualStatus
+      properties:
+        error:
+          type: string
+          example: "CONFLICT"
+        message:
+          type: string
+          example: "Status conflict: expected current status was 'PLACED', but order is currently 'ACCEPTED'."
+        statusCode:
+          type: integer
+          example: 409
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-10-19T02:45:00Z"
+        expectedStatus:
+          $ref: '#/components/schemas/OrderStatus'
+        actualStatus:
+          $ref: '#/components/schemas/OrderStatus'

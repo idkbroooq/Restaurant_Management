@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Restaurant Table-Ordering System</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+  :root{
+    --accent:#c2410c; --accent-soft:#fff1e9; --ink:#1c1917; --muted:#6b6360;
+    --bg:#faf8f6; --card:#ffffff; --line:#e7e1dc;
+    --s1:8px; --s2:16px; --s3:24px; --s4:32px; --s6:48px;
+    --radius:16px; --shadow:0 10px 30px rgba(28,25,23,.08);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:'Inter',system-ui,-apple-system,sans-serif;
+    line-height:1.55; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:960px;margin:0 auto;padding:var(--s6) var(--s3) var(--s6)}
+  .eyebrow{
+    text-transform:uppercase;letter-spacing:.14em;font-size:12px;font-weight:600;
+    color:var(--accent);margin:0 0 var(--s1)
+  }
+  h1{font-family:'Playfair Display',Georgia,serif;font-size:clamp(30px,5vw,44px);margin:0 0 var(--s2);font-weight:700}
+  .lede{color:var(--muted);font-size:17px;margin:0 0 var(--s4);max-width:60ch}
+  .grid{display:grid;gap:var(--s2);grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:var(--s3);box-shadow:var(--shadow);display:flex;flex-direction:column;gap:var(--s1)
+  }
+  .card h2{font-size:18px;margin:0}
+  .card p{margin:0;color:var(--muted);font-size:14px}
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:var(--s1);
+    min-height:44px;padding:0 var(--s2);border-radius:10px;text-decoration:none;
+    font-weight:600;font-size:15px;border:1px solid transparent;margin-top:var(--s1);
+  }
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-primary:hover{filter:brightness(1.08)}
+  .btn-ghost{border-color:var(--line);color:var(--ink);background:transparent}
+  .btn:focus-visible{outline:3px solid var(--accent-soft);outline-offset:2px}
+  .note{
+    margin-top:var(--s4);background:var(--accent-soft);border-radius:var(--radius);
+    padding:var(--s3);font-size:14px;color:#7a3a15
+  }
+  .note code{background:#fff;padding:2px 6px;border-radius:6px;font-size:13px;border:1px solid var(--line)}
+  table{border-collapse:collapse;width:100%;margin-top:var(--s2);font-size:14px}
+  th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+  a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">RDBMS + Java OOP lab project</p>
+  <h1>Restaurant Table-Ordering System</h1>
+  <p class="lede">
+    Spring Boot 3 + Spring JDBC (JdbcTemplate) + MySQL. Three front-ends talk to the same
+    REST API: guests order from a QR code, the kitchen drives the ticket board, and managers
+    run the back office.
+  </p>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Customer ordering</h2>
+      <p>Mobile-first menu, cart and live order tracking. Opens with <code>?table=&lt;token&gt;</code>.</p>
+      <a class="btn btn-primary" href="customer/index.html?table=tok_tbl_05_e5b4a32109876543">Open Table 5</a>
+    </div>
+    <div class="card">
+      <h2>Kitchen display</h2>
+      <p>Live board: PLACED · ACCEPTED · PREPARING · READY, with elapsed-time alerts.</p>
+      <a class="btn btn-primary" href="kitchen/">Open kitchen board</a>
+    </div>
+    <div class="card">
+      <h2>Manager console</h2>
+      <p>Menu and category CRUD, table management with printable QR codes, sales reports.</p>
+      <a class="btn btn-primary" href="admin/">Open admin console</a>
+    </div>
+    <div class="card">
+      <h2>API contract</h2>
+      <p>Interactive Swagger UI generated from the OpenAPI document, plus the raw spec.</p>
+      <a class="btn btn-ghost" href="swagger-ui.html">Swagger UI</a>
+      <a class="btn btn-ghost" href="api-docs">OpenAPI JSON</a>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>Demo staff logins</strong> (seeded BCrypt accounts):
+    <table>
+      <tr><th>Role</th><th>Username</th><th>Password</th><th>Can access</th></tr>
+      <tr><td>CHEF</td><td><code>chef_mario</code></td><td><code>ChefPassword123!</code></td><td>Kitchen board</td></tr>
+      <tr><td>WAITER</td><td><code>waiter_john</code></td><td><code>WaiterPassword123!</code></td><td>Billing &amp; payments</td></tr>
+      <tr><td>MANAGER</td><td><code>manager_alice</code></td><td><code>ManagerPassword123!</code></td><td>Everything</td></tr>
+    </table>
+  </div>
+</div>
+</body>
+</html>
