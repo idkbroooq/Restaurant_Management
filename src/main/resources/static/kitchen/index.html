@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
-  <title>Kitchen Display</title>
-  <link rel="stylesheet" href="../fonts/fonts.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <title>Kitchen &middot; Saffron &amp; Salt</title>
+  <link rel="stylesheet" href="../fonts/kds-fonts.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -13,8 +13,9 @@
   <!-- ============================ Login screen ============================ -->
   <section id="login-screen" class="screen screen--login">
     <form id="login-form" class="login-card" autocomplete="on">
-      <h1 class="brand">Kitchen<span>Board</span></h1>
-      <p class="login-sub">Sign in to open the live ticket queue.</p>
+      <p class="brand">Saffron &amp; Salt <span>Kitchen</span></p>
+      <h1 class="login-title">Sign in</h1>
+      <p class="login-sub">Open the live ticket queue.</p>
 
       <label for="username">Username</label>
       <input id="username" name="username" type="text" autocomplete="username"
@@ -31,21 +32,69 @@
   <!-- ============================ Kitchen board =========================== -->
   <section id="board-screen" class="screen screen--board" hidden>
     <header class="topbar">
-      <div class="topbar-title">
-        <h1 class="brand">Kitchen<span>Board</span></h1>
+      <div class="topbar-brand">
+        <h1 class="brand">Saffron &amp; Salt <span>Kitchen</span></h1>
         <span id="staff-chip" class="staff-chip"></span>
       </div>
       <div class="topbar-actions">
-        <button id="sound-toggle" type="button" class="btn btn-ghost" aria-pressed="false">Enable sound</button>
+        <p class="live" id="live-status">
+          <span class="live-dot" aria-hidden="true"></span>
+          <span id="live-text">Connecting&hellip;</span>
+        </p>
+        <button id="sound-toggle" type="button" class="switch" role="switch" aria-checked="false">
+          <span class="switch-track" aria-hidden="true"><span class="switch-knob"></span></span>
+          <span class="switch-text">Sound alerts</span>
+        </button>
         <button id="logout" type="button" class="btn btn-ghost">Log out</button>
       </div>
     </header>
 
-    <p id="connection-banner" class="banner" role="status" hidden>Connection lost &mdash; retrying&hellip;</p>
+    <p id="connection-banner" class="banner" role="status" hidden>Reconnecting&hellip;</p>
+
+    <div class="summary" aria-label="Order summary">
+      <span class="summary-chip" data-status="PLACED">
+        <span class="summary-dot" aria-hidden="true"></span><span class="summary-name">Placed</span>
+        <b class="summary-count" data-count="PLACED">0</b>
+      </span>
+      <span class="summary-chip" data-status="ACCEPTED">
+        <span class="summary-dot" aria-hidden="true"></span><span class="summary-name">Accepted</span>
+        <b class="summary-count" data-count="ACCEPTED">0</b>
+      </span>
+      <span class="summary-chip" data-status="PREPARING">
+        <span class="summary-dot" aria-hidden="true"></span><span class="summary-name">Preparing</span>
+        <b class="summary-count" data-count="PREPARING">0</b>
+      </span>
+      <span class="summary-chip" data-status="READY">
+        <span class="summary-dot" aria-hidden="true"></span><span class="summary-name">Ready</span>
+        <b class="summary-count" data-count="READY">0</b>
+      </span>
+      <span class="summary-chip summary-chip--oldest">
+        <span class="summary-name">Oldest waiting</span>
+        <b class="summary-oldest" id="oldest-order">&mdash;</b>
+      </span>
+    </div>
+
+    <!-- Shown below 700px: switch which single column is visible. -->
+    <nav id="status-tabs" class="status-tabs" aria-label="Filter orders by status"></nav>
 
     <!-- Columns are generated from the OrderStatus lifecycle in app.js -->
     <main id="board" class="board"></main>
   </section>
+
+  <p id="board-live" class="sr-only" aria-live="polite" aria-atomic="true"></p>
+
+  <!-- Custom confirmation dialog for cancelling an order -->
+  <div id="confirm-overlay" class="confirm-overlay" hidden>
+    <div class="confirm-dialog" role="dialog" aria-modal="true"
+         aria-labelledby="confirm-title" aria-describedby="confirm-text">
+      <h2 class="confirm-title" id="confirm-title">Cancel this order?</h2>
+      <p class="confirm-text" id="confirm-text"></p>
+      <div class="confirm-actions">
+        <button id="confirm-keep" type="button" class="btn btn-ghost">Keep order</button>
+        <button id="confirm-cancel" type="button" class="btn btn-danger-solid">Cancel order</button>
+      </div>
+    </div>
+  </div>
 
   <div id="toasts" class="toasts" aria-live="polite"></div>
 

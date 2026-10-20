@@ -212,6 +212,8 @@ body[data-screen="menu"] .main { padding-bottom: calc(var(--cartbar-h) + var(--s
   max-width: 420px;
 }
 .empty-card__emoji { font-size: 40px; line-height: 1; }
+.empty-card__icon { color: var(--accent); line-height: 0; }
+.empty-card__icon svg { display: block; }
 
 .spinner {
   width: 34px;

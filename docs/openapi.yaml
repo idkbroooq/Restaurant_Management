@@ -488,8 +488,8 @@ paths:
             schema:
               $ref: '#/components/schemas/LoginRequest'
             example:
-              username: "chef_mario"
-              password: "ChefPassword123!"
+              username: "string"
+              password: "string"
       responses:
         '200':
           description: Authentication successful.
@@ -501,8 +501,8 @@ paths:
                 token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
                 staff:
                   staffId: 1
-                  username: "chef_mario"
-                  fullName: "Mario Batali"
+                  username: "string"
+                  fullName: "string"
                   role: "CHEF"
         '400':
           description: Username or password missing.
@@ -567,8 +567,8 @@ paths:
                 $ref: '#/components/schemas/StaffProfile'
               example:
                 staffId: 1
-                username: "chef_mario"
-                fullName: "Mario Batali"
+                username: "string"
+                fullName: "string"
                 role: "CHEF"
         '401':
           description: Caller is not authenticated.
@@ -1668,10 +1668,10 @@ components:
           example: 1
         username:
           type: string
-          example: "chef_mario"
+          example: "string"
         fullName:
           type: string
-          example: "Mario Batali"
+          example: "string"
         role:
           $ref: '#/components/schemas/StaffRole'
 
@@ -1753,11 +1753,11 @@ components:
       properties:
         username:
           type: string
-          example: "chef_mario"
+          example: "string"
         password:
           type: string
           format: password
-          example: "ChefPassword123!"
+          example: "string"
 
     PaymentRequest:
       type: object

@@ -31,12 +31,18 @@
       <p class="muted">Loading your table…</p>
     </section>
 
-    <!-- No table token in the URL -->
+    <!-- No table token in the URL, or the token did not resolve to a table -->
     <section class="screen screen--center" id="screen-scan" hidden>
       <div class="empty-card">
-        <p class="empty-card__emoji" aria-hidden="true">📷</p>
-        <h1 class="screen-title">Scan the QR code on your table to start ordering.</h1>
-        <p class="muted">Point your phone’s camera at the code on the table tent.</p>
+        <p class="empty-card__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor"
+               stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+            <path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2" />
+            <path d="M8 12h8M12 8v8" />
+          </svg>
+        </p>
+        <h1 class="screen-title">Please scan the QR code on your table to view the menu</h1>
+        <p class="muted">Point your phone’s camera at the code on your table tent to open this restaurant’s menu.</p>
       </div>
     </section>
 

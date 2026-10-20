@@ -3,98 +3,220 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Restaurant Table-Ordering System</title>
+<title>Saffron &amp; Salt &middot; Slow-cooked North Indian classics</title>
+<meta name="description" content="Saffron &amp; Salt is a North Indian restaurant serving tandoori starters, slow-cooked curries and dum biryani. Visit us at 18 Hazratganj Road, Lucknow 226001.">
 <link rel="stylesheet" href="fonts/fonts.css">
-<style>
-  :root{
-    --accent:#c2410c; --accent-soft:#fff1e9; --ink:#1c1917; --muted:#6b6360;
-    --bg:#faf8f6; --card:#ffffff; --line:#e7e1dc;
-    --s1:8px; --s2:16px; --s3:24px; --s4:32px; --s6:48px;
-    --radius:16px; --shadow:0 10px 30px rgba(28,25,23,.08);
-  }
-  *{box-sizing:border-box}
-  body{
-    margin:0; background:var(--bg); color:var(--ink);
-    font-family:'Inter',system-ui,-apple-system,sans-serif;
-    line-height:1.55; -webkit-font-smoothing:antialiased;
-  }
-  .wrap{max-width:960px;margin:0 auto;padding:var(--s6) var(--s3) var(--s6)}
-  .eyebrow{
-    text-transform:uppercase;letter-spacing:.14em;font-size:12px;font-weight:600;
-    color:var(--accent);margin:0 0 var(--s1)
-  }
-  h1{font-family:'Playfair Display',Georgia,serif;font-size:clamp(30px,5vw,44px);margin:0 0 var(--s2);font-weight:700}
-  .lede{color:var(--muted);font-size:17px;margin:0 0 var(--s4);max-width:60ch}
-  .grid{display:grid;gap:var(--s2);grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
-  .card{
-    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-    padding:var(--s3);box-shadow:var(--shadow);display:flex;flex-direction:column;gap:var(--s1)
-  }
-  .card h2{font-size:18px;margin:0}
-  .card p{margin:0;color:var(--muted);font-size:14px}
-  .btn{
-    display:inline-flex;align-items:center;justify-content:center;gap:var(--s1);
-    min-height:44px;padding:0 var(--s2);border-radius:10px;text-decoration:none;
-    font-weight:600;font-size:15px;border:1px solid transparent;margin-top:var(--s1);
-  }
-  .btn-primary{background:var(--accent);color:#fff}
-  .btn-primary:hover{filter:brightness(1.08)}
-  .btn-ghost{border-color:var(--line);color:var(--ink);background:transparent}
-  .btn:focus-visible{outline:3px solid var(--accent-soft);outline-offset:2px}
-  .note{
-    margin-top:var(--s4);background:var(--accent-soft);border-radius:var(--radius);
-    padding:var(--s3);font-size:14px;color:#7a3a15
-  }
-  .note code{background:#fff;padding:2px 6px;border-radius:6px;font-size:13px;border:1px solid var(--line)}
-  table{border-collapse:collapse;width:100%;margin-top:var(--s2);font-size:14px}
-  th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line)}
-  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.06em}
-  a{color:var(--accent)}
-</style>
+<link rel="stylesheet" href="landing.css">
 </head>
 <body>
-<div class="wrap">
-  <p class="eyebrow">RDBMS + Java OOP lab project</p>
-  <h1>Restaurant Table-Ordering System</h1>
-  <p class="lede">
-    Spring Boot 3 + Spring JDBC (JdbcTemplate) + MySQL. Three front-ends talk to the same
-    REST API: guests order from a QR code, the kitchen drives the ticket board, and managers
-    run the back office.
-  </p>
+<a class="skip-link" href="#main">Skip to content</a>
 
-  <div class="grid">
-    <div class="card">
-      <h2>Customer ordering</h2>
-      <p>Mobile-first menu, cart and live order tracking. Opens with <code>?table=&lt;token&gt;</code>.</p>
-      <a class="btn btn-primary" href="customer/index.html?table=tok_tbl_05_e5b4a32109876543">Open Table 5</a>
-    </div>
-    <div class="card">
-      <h2>Kitchen display</h2>
-      <p>Live board: PLACED · ACCEPTED · PREPARING · READY, with elapsed-time alerts.</p>
-      <a class="btn btn-primary" href="kitchen/">Open kitchen board</a>
-    </div>
-    <div class="card">
-      <h2>Manager console</h2>
-      <p>Menu and category CRUD, table management with printable QR codes, sales reports.</p>
-      <a class="btn btn-primary" href="admin/">Open admin console</a>
-    </div>
-    <div class="card">
-      <h2>API contract</h2>
-      <p>Interactive Swagger UI generated from the OpenAPI document, plus the raw spec.</p>
-      <a class="btn btn-ghost" href="swagger-ui.html">Swagger UI</a>
-      <a class="btn btn-ghost" href="api-docs">OpenAPI JSON</a>
-    </div>
-  </div>
+<header class="site-header">
+  <div class="shell header-inner">
+    <a class="wordmark" href="#top">Saffron &amp; Salt</a>
 
-  <div class="note">
-    <strong>Demo staff logins</strong> (seeded BCrypt accounts):
-    <table>
-      <tr><th>Role</th><th>Username</th><th>Password</th><th>Can access</th></tr>
-      <tr><td>CHEF</td><td><code>chef_mario</code></td><td><code>ChefPassword123!</code></td><td>Kitchen board</td></tr>
-      <tr><td>WAITER</td><td><code>waiter_john</code></td><td><code>WaiterPassword123!</code></td><td>Billing &amp; payments</td></tr>
-      <tr><td>MANAGER</td><td><code>manager_alice</code></td><td><code>ManagerPassword123!</code></td><td>Everything</td></tr>
-    </table>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="#about">About</a>
+      <a href="#signature">Signature dishes</a>
+      <a href="#visit">Visit us</a>
+
+      <details class="staff-menu">
+        <summary>Staff sign in</summary>
+        <ul class="staff-menu__list">
+          <li><a href="kitchen/">Kitchen / Chef</a></li>
+          <li><a href="admin/">Manager</a></li>
+        </ul>
+      </details>
+    </nav>
   </div>
-</div>
+</header>
+
+<main id="main">
+
+  <section class="hero" id="top" aria-labelledby="hero-title">
+    <div class="shell hero-inner">
+      <div class="hero-copy">
+        <p class="eyebrow">North Indian kitchen</p>
+        <h1 id="hero-title">Saffron &amp; Salt</h1>
+        <p class="tagline">Slow-cooked North Indian classics</p>
+        <p class="scan-note">
+          Dining with us? Scan the QR code on your table to view the menu and order.
+        </p>
+        <p class="hero-links">
+          <a class="btn btn--primary" href="#signature">See signature dishes</a>
+          <a class="btn btn--ghost" href="#visit">Visit us</a>
+        </p>
+      </div>
+
+      <div class="hero-art" aria-hidden="true">
+        <svg viewBox="0 0 420 320" focusable="false">
+          <circle cx="210" cy="176" r="126" fill="#FFFFFF" stroke="#E4D9C8" stroke-width="2"/>
+          <circle cx="210" cy="176" r="108" fill="none" stroke="#E4D9C8" stroke-width="1.5" stroke-dasharray="3 7"/>
+          <circle cx="152" cy="132" r="30" fill="#F7EFE2" stroke="#B23A16" stroke-width="2"/>
+          <circle cx="152" cy="132" r="20" fill="none" stroke="#C98A5E" stroke-width="1.5"/>
+          <circle cx="268" cy="132" r="30" fill="#F7EFE2" stroke="#B23A16" stroke-width="2"/>
+          <path d="M248 132h40M252 122h32" fill="none" stroke="#C98A5E" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="152" cy="222" r="30" fill="#F7EFE2" stroke="#B23A16" stroke-width="2"/>
+          <path d="M132 222q10-10 20 0t20 0" fill="none" stroke="#C98A5E" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="268" cy="222" r="30" fill="#F7EFE2" stroke="#B23A16" stroke-width="2"/>
+          <path d="M252 214a10 10 0 1 0 0 20a10 10 0 1 0 0-20M262 232a8 8 0 1 0 0 16a8 8 0 1 0 0-16" fill="none" stroke="#C98A5E" stroke-width="1.5"/>
+          <ellipse cx="210" cy="177" rx="34" ry="26" fill="#FBF3E6" stroke="#C98A5E" stroke-width="1.5"/>
+          <path d="M186 176q24-12 48 0M188 186q22-10 44 0" fill="none" stroke="#C98A5E" stroke-width="1.5" stroke-linecap="round"/>
+          <g fill="none" stroke="#C58A12" stroke-width="2" stroke-linecap="round">
+            <path d="M150 66c10 8-8 14 0 22"/>
+            <path d="M190 54c10 8-8 14 0 22"/>
+            <path d="M230 60c10 8-8 14 0 22"/>
+          </g>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="about" aria-labelledby="about-title">
+    <div class="shell">
+      <p class="eyebrow">About</p>
+      <h2 id="about-title">Cooking the north of India, slowly</h2>
+      <div class="prose">
+        <p>
+          Saffron &amp; Salt opened its doors with a simple idea: cook North Indian food the long way.
+          Our tandoor is lit early each morning for breads and skewers, our gravies are built from
+          slow-simmered tomato and onion masalas, and the dal is left on a low flame for the better part
+          of the day. Nothing arrives frozen and nothing is rushed.
+        </p>
+        <p>
+          The dining room is warm, unhurried and made for long tables &mdash; families sharing a thali,
+          friends working through a plate of kebabs, or a quiet lunch over biryani and chai. Our team
+          is happy to talk you through spice levels, suggest a wine or lassi pairing, and box up whatever
+          you cannot finish.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--tinted" id="signature" aria-labelledby="signature-title">
+    <div class="shell">
+      <p class="eyebrow">Signature dishes</p>
+      <h2 id="signature-title">Six plates worth the visit</h2>
+
+      <ul class="dish-grid">
+        <li class="dish">
+          <span class="dish-art" aria-hidden="true">
+            <svg viewBox="0 0 64 64" focusable="false">
+              <path d="M32 8v48" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <rect x="20" y="14" width="24" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>
+              <rect x="20" y="28" width="24" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>
+              <rect x="20" y="42" width="24" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </span>
+          <h3>Paneer Tikka</h3>
+          <p>Charcoal grilled cottage cheese cubes marinated in spiced hung curd.</p>
+        </li>
+
+        <li class="dish">
+          <span class="dish-art" aria-hidden="true">
+            <svg viewBox="0 0 64 64" focusable="false">
+              <path d="M8 30h48c0 12-9 20-24 20s-24-8-24-20Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+              <path d="M8 30q12 6 24 0t24 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M20 20c6 4-4 8 2 12M38 18c6 4-4 8 2 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <h3>Butter Chicken</h3>
+          <p>Smoked shredded tandoori chicken simmered in creamy makhani gravy.</p>
+        </li>
+
+        <li class="dish">
+          <span class="dish-art" aria-hidden="true">
+            <svg viewBox="0 0 64 64" focusable="false">
+              <path d="M12 26h40v14a10 10 0 0 1-10 10H22a10 10 0 0 1-10-10Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+              <path d="M10 26h44" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M26 18h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="24" cy="38" r="2.5" fill="currentColor"/>
+              <circle cx="34" cy="42" r="2.5" fill="currentColor"/>
+              <circle cx="42" cy="36" r="2.5" fill="currentColor"/>
+            </svg>
+          </span>
+          <h3>Dal Makhani</h3>
+          <p>Slow cooked whole black lentils finished with cream and white butter.</p>
+        </li>
+
+        <li class="dish">
+          <span class="dish-art" aria-hidden="true">
+            <svg viewBox="0 0 64 64" focusable="false">
+              <path d="M6 32h52" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <rect x="16" y="24" width="32" height="16" rx="8" fill="none" stroke="currentColor" stroke-width="2"/>
+              <path d="M22 26v12M32 25v14M42 26v12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <path d="M12 32h-4M56 32h-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <h3>Lamb Seekh Kebab</h3>
+          <p>Minced spiced lamb skewers roasted over glowing charcoal embers.</p>
+        </li>
+
+        <li class="dish">
+          <span class="dish-art" aria-hidden="true">
+            <svg viewBox="0 0 64 64" focusable="false">
+              <path d="M14 28h36c0 14-8 24-18 24s-18-10-18-24Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+              <path d="M10 28h44" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M26 12c6 5-5 9 1 14M40 12c6 5-5 9 1 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="32" cy="18" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+          </span>
+          <h3>Chicken Dum Biryani</h3>
+          <p>Aged basmati rice and marinated chicken cooked on dum with saffron.</p>
+        </li>
+
+        <li class="dish">
+          <span class="dish-art" aria-hidden="true">
+            <svg viewBox="0 0 64 64" focusable="false">
+              <path d="M8 34h48c0 10-10 16-24 16S8 44 8 34Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+              <path d="M8 34h48" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="22" cy="28" r="6" fill="none" stroke="currentColor" stroke-width="2"/>
+              <circle cx="42" cy="28" r="6" fill="none" stroke="currentColor" stroke-width="2"/>
+              <circle cx="32" cy="24" r="5" fill="none" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </span>
+          <h3>Gulab Jamun with Rabdi</h3>
+          <p>Warm reduced-milk dumplings served with saffron clotted cream.</p>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="section" id="visit" aria-labelledby="visit-title">
+    <div class="shell">
+      <p class="eyebrow">Visit us</p>
+      <h2 id="visit-title">We would love to host you</h2>
+
+      <dl class="visit-grid">
+        <div class="visit-item">
+          <dt>Address</dt>
+          <dd>18 Hazratganj Road, Lucknow 226001</dd>
+        </div>
+        <div class="visit-item">
+          <dt>Hours</dt>
+          <dd>Mon&ndash;Sun, 12:00 PM &ndash; 11:00 PM</dd>
+        </div>
+        <div class="visit-item">
+          <dt>Phone</dt>
+          <dd><a href="tel:+919876543210">+91 9876543210</a></dd>
+        </div>
+        <div class="visit-item">
+          <dt>Service</dt>
+          <dd>Dine in and takeaway. Reservations by phone.</dd>
+        </div>
+      </dl>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="shell footer-inner">
+    <p class="footer-wordmark">Saffron &amp; Salt</p>
+    <p class="footer-note">North Indian cuisine &middot; 18 Hazratganj Road, Lucknow 226001</p>
+    <p class="footer-note">&copy; Saffron &amp; Salt. All rights reserved.</p>
+  </div>
+</footer>
+
 </body>
 </html>

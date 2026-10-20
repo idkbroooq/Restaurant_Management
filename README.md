@@ -183,3 +183,5 @@ Open in your browser:
 | `chef_mario` | `ChefPassword123!` | `CHEF` |
 | `waiter_john` | `WaiterPassword123!` | `WAITER` |
 | `manager_alice` | `ManagerPassword123!` | `MANAGER` |
+
+See [STAFF_ACCOUNTS.md](STAFF_ACCOUNTS.md) for the full list of staff roles, credentials, and access.

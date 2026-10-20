@@ -264,7 +264,8 @@ function boot() {
     if (err.network) {
       showFatal('We could not reach the restaurant', 'Please check your connection and try again.', boot);
     } else if (err.status === 404) {
-      showFatal('This QR code is not valid', 'Please ask a member of staff for help.', boot);
+      // Unknown / invalid token: show the same friendly scan prompt, with no menu.
+      showScreen('scan');
     } else {
       showFatal('Something went wrong', err.message || 'Please try again in a moment.', boot);
     }
