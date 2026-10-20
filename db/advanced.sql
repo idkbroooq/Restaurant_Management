@@ -90,7 +90,8 @@ DELIMITER //
 --       Direct invalid jumps (e.g. PLACED -> SERVED) would bypass kitchen prep
 --       and corrupt food timing metrics.
 -- ----------------------------------------------------------------------------
-CREATE OR REPLACE TRIGGER trg_orders_validate_status_transition
+DROP TRIGGER IF EXISTS trg_orders_validate_status_transition //
+CREATE TRIGGER trg_orders_validate_status_transition
 BEFORE UPDATE ON orders
 FOR EACH ROW
 BEGIN
@@ -126,7 +127,8 @@ END //
 --       relying on manual application logging. Allows measuring station prep
 --       times, identifying bottlenecks, and capturing staff accountability.
 -- ----------------------------------------------------------------------------
-CREATE OR REPLACE TRIGGER trg_orders_log_status_change
+DROP TRIGGER IF EXISTS trg_orders_log_status_change //
+CREATE TRIGGER trg_orders_log_status_change
 AFTER UPDATE ON orders
 FOR EACH ROW
 BEGIN
@@ -165,7 +167,8 @@ DELIMITER //
 -- WHY:  Encapsulates order total calculation within the database engine.
 --       Guarantees consistency across Java repositories, views, and batch jobs.
 -- ----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION fn_order_total(p_order_id INT UNSIGNED)
+DROP FUNCTION IF EXISTS fn_order_total //
+CREATE FUNCTION fn_order_total(p_order_id INT UNSIGNED)
 RETURNS DECIMAL(10,2)
 READS SQL DATA
 DETERMINISTIC
@@ -189,7 +192,8 @@ END //
 --       Ensures tax calculations are consistent and legal requirements are met
 --       before closing out dining sessions.
 -- ----------------------------------------------------------------------------
-CREATE OR REPLACE PROCEDURE sp_generate_bill(IN p_session_id INT UNSIGNED)
+DROP PROCEDURE IF EXISTS sp_generate_bill //
+CREATE PROCEDURE sp_generate_bill(IN p_session_id INT UNSIGNED)
 BEGIN
     DECLARE v_subtotal DECIMAL(10,2);
     DECLARE v_tax_rate DECIMAL(5,2) DEFAULT 5.00; -- 5% GST rate
